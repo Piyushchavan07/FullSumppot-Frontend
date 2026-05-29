@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Environment variables — never commit secrets
+.env
+.env.local
+.env.*.local
+# .env.example is intentionally tracked (it's the template)
+
+# Cache
+.eslintcache
+.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

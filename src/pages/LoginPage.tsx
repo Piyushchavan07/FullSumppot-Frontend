@@ -6,12 +6,11 @@ import { z } from 'zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { toast } from 'sonner';
-
-import { api } from '../services/api';
+import { api, setAuthToken } from '../services/api';
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -29,43 +28,47 @@ export default function LoginPage() {
 
   const onSubmit = async (data: FormData) => {
     try {
-      // ✅ Step 1: Login
       const loginRes = await api.login(data.email, data.password);
       const token = loginRes.token;
 
-      localStorage.setItem("token", token);
-
-      // ✅ Step 2: Get dashboard data
+      // Temporarily set token so the dashboard fetch is authenticated
+      setAuthToken(token);
       const dashboard = await api.dashboard();
 
-      // ✅ Step 3: Save in Zustand
+      // login() persists user + token in Zustand and localStorage
       login(
         {
-          id: String(dashboard.userId ?? ""),
-          username: dashboard.username,
+          id: String(dashboard.userId ?? dashboard.id ?? ''),
+          username: dashboard.username ?? loginRes.username ?? 'User',
           email: data.email,
-          niche: dashboard.contentNiche,
-          contentNiche: dashboard.contentNiche,
-          availablePoints: dashboard.availablePoints,
-          createdAt: new Date().toISOString(),
+          niche: dashboard.contentNiche ?? '',
+          contentNiche: dashboard.contentNiche ?? '',
+          availablePoints: dashboard.availablePoints ?? 0,
+          createdAt: dashboard.createdAt ?? new Date().toISOString(),
+          avatarUrl: dashboard.avatarUrl,
         },
         token
       );
 
-      toast.success(`Welcome back, ${dashboard.username}!`);
+      toast.success(`Welcome back, ${dashboard.username || 'User'}!`);
       navigate('/dashboard');
-
-    } catch (err) {
-      toast.error("Invalid credentials");
+    } catch (err: unknown) {
+      // Clear any partial token on failure
+      setAuthToken(null);
+      const message = err instanceof Error ? err.message : 'Invalid credentials';
+      toast.error(message);
     }
   };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Full Sumppot" className="w-20 h-20 rounded-full object-cover mx-auto mb-3 ring-2 ring-primary/30" />
+          <img
+            src="/logo.png"
+            alt="Full Sumppot"
+            className="w-20 h-20 rounded-full object-cover mx-auto mb-3 ring-2 ring-primary/30"
+          />
           <h1 className="text-4xl font-black tracking-tight mb-2">
             <span className="text-primary">Full</span>
             <span className="text-textPrimary"> Sumppot</span>
@@ -75,7 +78,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Card */}
         <div className="card">
           <h2 className="text-xl font-bold text-textPrimary mb-6">Sign In</h2>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -98,7 +100,7 @@ export default function LoginPage() {
                 <input
                   type={showPass ? 'text' : 'password'}
                   className="input-field pr-10"
-                  placeholder="••••••••"
+                  placeholder="********"
                   {...register('password')}
                 />
                 <button
@@ -120,7 +122,7 @@ export default function LoginPage() {
               className="btn-primary w-full flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-              {isSubmitting ? 'Signing in…' : 'Sign In'}
+              {isSubmitting ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 

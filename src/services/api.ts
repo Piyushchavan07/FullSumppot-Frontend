@@ -1,49 +1,150 @@
-const API_BASE = "http://localhost:5230/api";
+import { API_BASE_URL } from "../config";
+const API_BASE = API_BASE_URL;
+
+import type {
+  ApiErrorShape,
+  Community,
+  DashboardData,
+  FollowUser,
+  LeaderboardRow,
+  Link,
+  Notification,
+  PublicProfile,
+  RegisterPayload,
+  SearchResults,
+  User,
+} from "../types";
 
 const getToken = () => localStorage.getItem("token");
 
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    localStorage.setItem("token", token);
+  } else {
+    localStorage.removeItem("token");
+  }
+};
+
+// Helper function for error handling
+const handleResponse = async <T>(response: Response): Promise<T> => {
+  const contentType = response.headers.get('content-type');
+  let data: T | ApiErrorShape | string;
+
+  if (contentType?.includes('application/json')) {
+    data = await response.json();
+  } else {
+    data = await response.text();
+  }
+
+  if (!response.ok) {
+    console.error('API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: data,
+    });
+    throw new Error(
+      typeof data === 'object' && data !== null && 'message' in data && data.message
+        ? data.message
+        : `HTTP ${response.status}: ${response.statusText}`
+    );
+  }
+
+  return data as T;
+};
+
 export const api = {
+  // ==================== AUTH ====================
   login: async (email: string, password: string) => {
     const res = await fetch(`${API_BASE}/Auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
     });
-
-    if (!res.ok) throw new Error("Login failed");
-
-    return res.json();
+    return handleResponse<{ token: string; username?: string }>(res);
   },
 
-  register: async (data: any) => {
+  register: async (data: RegisterPayload) => {
     const res = await fetch(`${API_BASE}/Auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        contentNiche: data.niche
+      })
     });
-
-    if (!res.ok) throw new Error("Register failed");
-
-    return res.text();
+    return handleResponse<{ success?: boolean; message?: string }>(res);
   },
 
+  // ==================== DASHBOARD ====================
   dashboard: async () => {
     const res = await fetch(`${API_BASE}/Dashboard`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Failed to fetch dashboard");
-    return res.json();
+    return handleResponse<DashboardData>(res);
   },
 
+  // ==================== NOTIFICATIONS ====================
+  getNotifications: async () => {
+    const res = await fetch(`${API_BASE}/User/notifications`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<Notification[]>(res);
+  },
+
+  markNotificationsRead: async () => {
+    const res = await fetch(`${API_BASE}/User/notifications/read-all`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  acceptFollow: async (senderId: string | number) => {
+    const res = await fetch(`${API_BASE}/User/follow-accept/${senderId}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  declineFollow: async (senderId: string | number) => {
+    const res = await fetch(`${API_BASE}/User/follow-decline/${senderId}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  deleteNotification: async (notificationId: string | number) => {
+    const res = await fetch(`${API_BASE}/User/notifications/${notificationId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  // ==================== COMMUNITIES ====================
   communities: async () => {
     const res = await fetch(`${API_BASE}/Communities`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Failed to fetch communities");
-    return res.json();
+    return handleResponse<Community[]>(res);
   },
 
-  createCommunity: async (data: any) => {
+  communityById: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Communities/${id}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<Community>(res);
+  },
+
+  createCommunity: async (data: {
+    name: string;
+    description: string;
+    niche: string;
+  }) => {
     const res = await fetch(`${API_BASE}/Communities`, {
       method: "POST",
       headers: {
@@ -52,48 +153,53 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error("Failed to create community");
-    return res.json();
+    return handleResponse<Community>(res);
   },
 
-  communityById: async (id: string | number) => {
+  updateCommunity: async (
+    id: string | number,
+    data: {
+      name?: string;
+      description?: string;
+      niche?: string;
+    }
+  ) => {
     const res = await fetch(`${API_BASE}/Communities/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`
+      },
+      body: JSON.stringify(data)
+    });
+    return handleResponse<Community>(res);
+  },
+
+  deleteCommunity: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Communities/${id}`, {
+      method: "DELETE",
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Community not found");
-    return res.json();
+    return handleResponse<{ success?: boolean; message?: string }>(res);
   },
 
   joinCommunity: async (id: string | number) => {
     const res = await fetch(`${API_BASE}/Communities/${id}/join`, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}` 
-      }
+      headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("Join error:", err);
-      throw new Error(err || "Failed to join community");
-    }
+    return handleResponse<Community>(res);
   },
 
   leaveCommunity: async (id: string | number) => {
     const res = await fetch(`${API_BASE}/Communities/${id}/leave`, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}` 
-      }
+      headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("Leave error:", err);
-      throw new Error(err || "Failed to leave community");
-    }
+    return handleResponse<Community>(res);
   },
 
+  // ==================== LINKS ====================
   addLink: async (title: string, url: string, communityId: string | number) => {
     const res = await fetch(`${API_BASE}/Links`, {
       method: "POST",
@@ -101,68 +207,432 @@ export const api = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${getToken()}`
       },
-      body: JSON.stringify({ title, url, communityId })
+      body: JSON.stringify({
+        title,
+        url,
+        communityId
+      })
     });
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("AddLink error:", err);
-      throw new Error(err || "Failed to submit link");
-    }
-    return res.json();
+    return handleResponse<Link>(res);
+  },
+
+  updateLink: async (id: string | number, title: string, url: string) => {
+    const res = await fetch(`${API_BASE}/Links/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({
+        title,
+        url
+      })
+    });
+    return handleResponse<Link>(res);
+  },
+
+  deleteLink: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Links/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
   },
 
   clickLink: async (linkId: string | number) => {
     const res = await fetch(`${API_BASE}/Links/${linkId}/click`, {
       method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}` 
-      }
+      headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("ClickLink error:", err);
-      throw new Error(err || "Failed to record click");
-    }
+    return handleResponse<{ success?: boolean; message?: string }>(res);
   },
 
   linksByCommunity: async (id: string | number) => {
     const res = await fetch(`${API_BASE}/Links/community/${id}`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Failed to fetch links");
-    return res.json();
+    return handleResponse<Link[]>(res);
   },
 
-  leaderboard: async () => {
-    const res = await fetch(`${API_BASE}/Leaderboard`, {
+  getLinkCount: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Links/community/${id}/count`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Failed to fetch leaderboard");
-    return res.json();
+    const data = await handleResponse<{ count?: number }>(res);
+    return data.count ?? 0;
   },
 
   myLinks: async () => {
     const res = await fetch(`${API_BASE}/Links/my`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Failed to fetch your links");
-    return res.json();
+    return handleResponse<Link[]>(res);
   },
 
-  notifications: async () => {
-    const res = await fetch(`${API_BASE}/Notifications`, {
+  // ==================== USER ====================
+  getUserProfile: async () => {
+    const res = await fetch(`${API_BASE}/User/profile`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Failed to fetch notifications");
-    return res.json();
+    return handleResponse<User>(res);
   },
 
-  markNotificationsRead: async () => {
-    const res = await fetch(`${API_BASE}/Notifications/mark-read`, {
+  getPublicProfile: async (userId: number | string) => {
+    const res = await fetch(`${API_BASE}/User/${userId}/public-profile`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<PublicProfile>(res);
+  },
+
+  updateUserProfile: async (data: {
+    username?: string;
+    bio?: string;
+    contentNiche?: string;
+  }) => {
+    const res = await fetch(`${API_BASE}/User/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`
+      },
+      body: JSON.stringify(data)
+    });
+    return handleResponse<User>(res);
+  },
+
+  uploadAvatar: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${API_BASE}/User/upload-avatar`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` },
+      body: formData
+    });
+    return handleResponse<User>(res);
+  },
+
+  uploadCommunityBanner: async (communityId: string | number, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${API_BASE}/Communities/${communityId}/banner`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` },
+      body: formData
+    });
+    return handleResponse<{ bannerUrl: string }>(res);
+  },
+
+  followUser: async (userId: string | number) => {
+    const res = await fetch(`${API_BASE}/User/follow/${userId}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("Failed to mark notifications as read");
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  unfollowUser: async (userId: string | number) => {
+    const res = await fetch(`${API_BASE}/User/${userId}/unfollow`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  blockUser: async (userId: string | number) => {
+    const res = await fetch(`${API_BASE}/User/${userId}/block`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  unblockUser: async (userId: string | number) => {
+    const res = await fetch(`${API_BASE}/User/${userId}/unblock`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  followers: async () => {
+    const res = await fetch(`${API_BASE}/User/followers`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<FollowUser[]>(res);
+  },
+
+  following: async () => {
+    const res = await fetch(`${API_BASE}/User/following`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<FollowUser[]>(res);
+  },
+
+  // ==================== SEARCH ====================
+  userSearch: async (query: string) => {
+    const params = new URLSearchParams({ query });
+    const res = await fetch(`${API_BASE}/User/search?${params}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<SearchResults>(res);
+  },
+
+  communitySearch: async (query: string) => {
+    const params = new URLSearchParams({ query });
+    const res = await fetch(`${API_BASE}/User/search?${params}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<SearchResults>(res);
+  },
+
+  leaderboard: async () => {
+    const res = await fetch(`${API_BASE}/Leaderboard`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<LeaderboardRow[]>(res);
+  },
+
+  // ==================== MESSAGES ====================
+  getConversations: async () => {
+    const res = await fetch(`${API_BASE}/Messages/conversations`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{
+      conversationId: number; otherUserId: number; otherUsername: string;
+      otherAvatar?: string; lastMessage?: string; lastMessageAt?: string; unreadCount: number;
+    }[]>(res);
+  },
+
+  getMessages: async (conversationId: number) => {
+    const res = await fetch(`${API_BASE}/Messages/conversations/${conversationId}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{
+      messageId: number; senderId: number; username: string;
+      content: string; isRead: boolean; sentAt: string; isMine: boolean;
+    }[]>(res);
+  },
+
+  sendMessage: async (recipientId: number, content: string) => {
+    const res = await fetch(`${API_BASE}/Messages/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ recipientId, content })
+    });
+    return handleResponse<{ conversationId?: number; type: string }>(res);
+  },
+
+  sendToConversation: async (conversationId: number, content: string) => {
+    const res = await fetch(`${API_BASE}/Messages/conversations/${conversationId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ content })
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  getMessageRequests: async () => {
+    const res = await fetch(`${API_BASE}/Messages/requests`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{
+      requestId: number; senderId: number; username: string;
+      avatarUrl?: string; firstMessage: string; createdAt: string;
+    }[]>(res);
+  },
+
+  acceptMessageRequest: async (requestId: number) => {
+    const res = await fetch(`${API_BASE}/Messages/requests/${requestId}/accept`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ conversationId: number }>(res);
+  },
+
+  declineMessageRequest: async (requestId: number) => {
+    const res = await fetch(`${API_BASE}/Messages/requests/${requestId}/decline`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  getSentMessageRequests: async () => {
+    const res = await fetch(`${API_BASE}/Messages/requests/sent`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{
+      requestId: number; recipientId: number; username: string;
+      avatarUrl?: string; firstMessage: string; createdAt: string; status: string;
+    }[]>(res);
+  },
+
+  getUnreadMessageCount: async () => {
+    const res = await fetch(`${API_BASE}/Messages/unread`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ unreadMessages: number; pendingRequests: number; total: number }>(res);
+  },
+
+  // ==================== POSTS/CONTENT ====================
+  createPost: async (data: {
+    title: string;
+    content: string;
+    communityId?: string | number;
+  }) => {
+    const res = await fetch(`${API_BASE}/Posts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`
+      },
+      body: JSON.stringify(data)
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  getPost: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Posts/${id}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ id: string | number; title: string; content: string }>(res);
+  },
+
+  getCommunityPosts: async (communityId: string | number) => {
+    const res = await fetch(`${API_BASE}/Posts/community/${communityId}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ id: string | number; title: string; content: string }[]>(res);
+  },
+
+  deletePost: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Posts/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  likePost: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Posts/${id}/like`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  unlikePost: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Posts/${id}/unlike`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  // ==================== COMMENTS ====================
+  addComment: async (postId: string | number, content: string) => {
+    const res = await fetch(`${API_BASE}/Comments`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({ postId, content })
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  // ==================== LINK INTERACTIONS ====================
+  getLinkComments: async (linkId: string | number) => {
+    const res = await fetch(`${API_BASE}/Links/${linkId}/comments`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ commentId: number; username: string; content: string; createdAt: string; userId: number }[]>(res);
+  },
+
+  addLinkComment: async (linkId: string | number, content: string) => {
+    const res = await fetch(`${API_BASE}/Links/${linkId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ content })
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  deleteLinkComment: async (linkId: string | number, commentId: number) => {
+    const res = await fetch(`${API_BASE}/Links/${linkId}/comments/${commentId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  toggleLinkLike: async (linkId: string | number) => {
+    const res = await fetch(`${API_BASE}/Links/${linkId}/like`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ liked: boolean; likeCount: number }>(res);
+  },
+
+  getLinkLikes: async (linkId: string | number) => {
+    const res = await fetch(`${API_BASE}/Links/${linkId}/likes`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ likeCount: number; isLikedByMe: boolean }>(res);
+  },
+
+  getLinkClickers: async (linkId: string | number) => {
+    const res = await fetch(`${API_BASE}/Links/supporters/${linkId}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{
+      totalClicks: number;
+      uniqueUsers: number;
+      creatorClicks: number;
+      supporters: {
+        userId: number;
+        username: string;
+        avatarUrl?: string;
+        clickedAt: string;
+        referrerPage?: string;
+        isCreator: boolean;
+        followStatus: string;
+      }[];
+    }>(res);
+  },
+
+  shoutOut: async (linkId: string | number, targetUserId: number) => {
+    const res = await fetch(`${API_BASE}/Links/${linkId}/shoutout/${targetUserId}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  deleteComment: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Comments/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  likeComment: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Comments/${id}/like`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
+  },
+
+  unlikeComment: async (id: string | number) => {
+    const res = await fetch(`${API_BASE}/Comments/${id}/unlike`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ success?: boolean; message?: string }>(res);
   }
 };
+
+export default api;

@@ -5,7 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
-import { useAuthStore } from '../store/authStore';
 import { toast } from 'sonner';
 
 const niches = [
@@ -16,7 +15,7 @@ const niches = [
 const schema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
   email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
   niche: z.string().min(1, 'Please select a niche'),
 });
 
@@ -24,7 +23,6 @@ type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const login = useAuthStore((s) => s.login);
   const [showPass, setShowPass] = useState(false);
 
   const {
@@ -38,8 +36,8 @@ export default function RegisterPage() {
       await api.register(data);
       toast.success(`Welcome to Full Sumppot, ${data.username}! Please sign in.`);
       navigate('/login');
-    } catch (err: any) {
-      toast.error(err.message || "Registration failed. Please try again.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     }
   };
 
