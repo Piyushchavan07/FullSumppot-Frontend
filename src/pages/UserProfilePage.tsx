@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Star, Users, Play, MousePointerClick, Loader2, UserPlus, UserCheck, Clock, MessageCircle, ArrowLeft, Link2 } from 'lucide-react';
+import { User, Star, Users, Play, MousePointerClick, Loader2, UserPlus, UserCheck, Clock, MessageCircle, ArrowLeft, Link2, ExternalLink } from 'lucide-react';
 import { api } from '../services/api';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -23,9 +23,21 @@ export default function UserProfilePage() {
     mutationFn: () => api.followUser(id!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['publicProfile', id] });
+      qc.invalidateQueries({ queryKey: ['search'] });
       toast.success('Follow request sent!');
     },
     onError: (err: Error) => toast.error(err?.message || 'Failed to follow'),
+  });
+
+  const unfollowMut = useMutation({
+    mutationFn: () => api.unfollowUser(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['publicProfile', id] });
+      qc.invalidateQueries({ queryKey: ['search'] });
+      qc.invalidateQueries({ queryKey: ['following'] });
+      toast.success('Unfollowed');
+    },
+    onError: (err: Error) => toast.error(err?.message || 'Failed to unfollow'),
   });
 
   const messageMut = useMutation({
@@ -70,9 +82,15 @@ export default function UserProfilePage() {
   const followButton = () => {
     if (profile.followStatus === 'ACCEPTED') {
       return (
-        <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 text-primary text-sm font-medium border border-primary/20">
-          <UserCheck size={15} /> Following
-        </span>
+        <button
+          onClick={() => unfollowMut.mutate()}
+          disabled={unfollowMut.isPending}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 text-primary text-sm font-medium border border-primary/20 hover:bg-red-950/30 hover:text-red-400 hover:border-red-900/50 transition-colors"
+          title="Click to unfollow"
+        >
+          {unfollowMut.isPending ? <Loader2 size={15} className="animate-spin" /> : <UserCheck size={15} />}
+          Following
+        </button>
       );
     }
     if (profile.followStatus === 'PENDING') {
@@ -95,7 +113,7 @@ export default function UserProfilePage() {
   };
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-xl mx-auto space-y-6">
       {/* Back button */}
       <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-textSecondary hover:text-textPrimary text-sm transition-colors">
         <ArrowLeft size={16} /> Back
@@ -106,7 +124,12 @@ export default function UserProfilePage() {
         <div className="flex items-start gap-4 mb-6">
           <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center overflow-hidden shrink-0">
             {profile.avatarUrl ? (
-              <img src={getAssetUrl(profile.avatarUrl)!} alt={profile.username} className="w-full h-full object-cover" />
+              <img
+                src={getAssetUrl(profile.avatarUrl)!}
+                alt={profile.username}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
             ) : (
               <User size={36} className="text-primary" />
             )}
@@ -174,15 +197,17 @@ export default function UserProfilePage() {
             <span className="text-textSecondary text-sm">Communities Created</span>
             <span className="text-textPrimary font-medium">{profile.communitiesCreated}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-textSecondary text-sm flex items-center gap-1.5"><Play size={13} /> View Communities</span>
-            <button
-              onClick={() => navigate(`/communities?creatorId=${profile.userId}&creatorName=${encodeURIComponent(profile.username)}`)}
-              className="text-primary text-xs hover:underline"
-            >
-              Browse →
-            </button>
-          </div>
+          {profile.communitiesCreated > 0 && (
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-textSecondary text-sm flex items-center gap-1.5"><Play size={13} /> Browse their communities</span>
+              <button
+                onClick={() => navigate(`/communities?creatorId=${profile.userId}&creatorName=${encodeURIComponent(profile.username)}`)}
+                className="text-primary text-xs font-semibold hover:underline flex items-center gap-1"
+              >
+                View {profile.communitiesCreated} <ExternalLink size={10} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

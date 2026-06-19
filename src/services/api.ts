@@ -2,6 +2,11 @@ import { API_BASE_URL } from "../config";
 const API_BASE = API_BASE_URL;
 
 import type {
+  AdminCommunity,
+  AdminLink,
+  AdminStats,
+  AdminUser,
+  AccountContacts,
   ApiErrorShape,
   Community,
   DashboardData,
@@ -9,18 +14,23 @@ import type {
   LeaderboardRow,
   Link,
   Notification,
+  OtpResponse,
   PublicProfile,
   RegisterPayload,
   SearchResults,
+  SupportersData,
   User,
+  WeeklySupportRow,
 } from "../types";
 
-const getToken = () => localStorage.getItem("token");
+const getToken = () => sessionStorage.getItem("token") || localStorage.getItem("token");
 
 export const setAuthToken = (token: string | null) => {
   if (token) {
-    localStorage.setItem("token", token);
+    sessionStorage.setItem("token", token);
+    localStorage.setItem("token", token); // keep localStorage as fallback for page refresh
   } else {
+    sessionStorage.removeItem("token");
     localStorage.removeItem("token");
   }
 };
@@ -42,11 +52,22 @@ const handleResponse = async <T>(response: Response): Promise<T> => {
       statusText: response.statusText,
       data: data,
     });
-    throw new Error(
-      typeof data === 'object' && data !== null && 'message' in data && data.message
-        ? data.message
-        : `HTTP ${response.status}: ${response.statusText}`
-    );
+    const body = typeof data === 'object' && data !== null ? (data as ApiErrorShape) : {};
+    if (response.status === 429 && body.resendCooldownSeconds) {
+      throw new Error(`Please wait ${body.resendCooldownSeconds}s before resending.`);
+    }
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    if (body.message) {
+      errorMessage = body.message;
+    } else if (body.errors && typeof body.errors === 'object') {
+      const errorList = Object.values(body.errors).flat();
+      if (errorList.length > 0) {
+        errorMessage = errorList.join(' ');
+      }
+    } else if (body.title) {
+      errorMessage = body.title;
+    }
+    throw new Error(errorMessage);
   }
 
   return data as T;
@@ -60,21 +81,23 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
     });
-    return handleResponse<{ token: string; username?: string }>(res);
+    return handleResponse<{ token: string; username?: string; needsVerification?: boolean; email?: string; phoneNumber?: string | null; channel?: string; maskedContact?: string }>(res);
   },
 
   register: async (data: RegisterPayload) => {
+    const payload: Record<string, string> = {
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      contentNiche: data.niche,
+    };
+    if (data.phoneNumber) payload.phoneNumber = data.phoneNumber;
     const res = await fetch(`${API_BASE}/Auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: data.username,
-        email: data.email,
-        password: data.password,
-        contentNiche: data.niche
-      })
+      body: JSON.stringify(payload)
     });
-    return handleResponse<{ success?: boolean; message?: string }>(res);
+    return handleResponse<{ message?: string; maskedContact?: string; channel?: string; resendCooldownSeconds?: number; hasPendingPhone?: boolean }>(res);
   },
 
   // ==================== DASHBOARD ====================
@@ -320,6 +343,14 @@ export const api = {
       body: formData
     });
     return handleResponse<{ bannerUrl: string }>(res);
+  },
+
+  removeCommunityBanner: async (communityId: string | number) => {
+    const res = await fetch(`${API_BASE}/Communities/${communityId}/banner`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
   },
 
   followUser: async (userId: string | number) => {
@@ -586,20 +617,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/Links/supporters/${linkId}`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
-    return handleResponse<{
-      totalClicks: number;
-      uniqueUsers: number;
-      creatorClicks: number;
-      supporters: {
-        userId: number;
-        username: string;
-        avatarUrl?: string;
-        clickedAt: string;
-        referrerPage?: string;
-        isCreator: boolean;
-        followStatus: string;
-      }[];
-    }>(res);
+    return handleResponse<SupportersData>(res);
   },
 
   shoutOut: async (linkId: string | number, targetUserId: number) => {
@@ -632,7 +650,226 @@ export const api = {
       headers: { Authorization: `Bearer ${getToken()}` }
     });
     return handleResponse<{ success?: boolean; message?: string }>(res);
-  }
+  },
+
+  // ==================== ADMIN ====================
+  adminGetStats: async () => {
+    const res = await fetch(`${API_BASE}/Admin/stats`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<AdminStats>(res);
+  },
+
+  adminGetUsers: async () => {
+    const res = await fetch(`${API_BASE}/Admin/users`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<AdminUser[]>(res);
+  },
+
+  adminMakeAdmin: async (userId: number) => {
+    const res = await fetch(`${API_BASE}/Admin/users/${userId}/make-admin`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  adminDeleteUser: async (userId: number) => {
+    const res = await fetch(`${API_BASE}/Admin/users/${userId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  adminGetCommunities: async () => {
+    const res = await fetch(`${API_BASE}/Admin/communities`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<AdminCommunity[]>(res);
+  },
+
+  adminDeleteCommunity: async (communityId: number) => {
+    const res = await fetch(`${API_BASE}/Admin/communities/${communityId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  adminGetLinks: async () => {
+    const res = await fetch(`${API_BASE}/Admin/links`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<AdminLink[]>(res);
+  },
+
+  adminDeleteLink: async (linkId: number) => {
+    const res = await fetch(`${API_BASE}/Admin/links/${linkId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  // ==================== PASSWORD ====================
+  changePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    const res = await fetch(`${API_BASE}/User/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(data)
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  // ==================== SUPPORT SYSTEM ====================
+  // Get the most recent link by a user (for Support Back)
+  getLatestLink: async (userId: number) => {
+    const res = await fetch(`${API_BASE}/Links/latest/${userId}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ linkId: number; title: string; url: string; userId: number; username: string }>(res);
+  },
+
+  // Get all links by a user (for Support Back picker)
+  getLinksByUser: async (userId: number) => {
+    const res = await fetch(`${API_BASE}/Links/user/${userId}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ linkId: number; title: string; url: string; thumbnailUrl?: string; clicks: number; createdAt: string; isClickedByMe: boolean }[]>(res);
+  },
+
+  // Notify a creator that someone clicked their link via Support Back
+  notifySupportBack: async (creatorUserId: number, linkId: number) => {
+    const res = await fetch(`${API_BASE}/Links/${linkId}/support-back-notify/${creatorUserId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  // Weekly support leaderboard
+  getWeeklySupporters: async () => {
+    const res = await fetch(`${API_BASE}/Links/weekly-supporters`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<WeeklySupportRow[]>(res);
+  },
+
+  // ==================== EMAIL OTP ====================
+  verifyEmail: async (email: string, otp: string) => {
+    const res = await fetch(`${API_BASE}/Auth/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp })
+    });
+    return handleResponse<{ token: string; username?: string }>(res);
+  },
+
+  resendVerificationOtp: async (email?: string, phoneNumber?: string) => {
+    const res = await fetch(`${API_BASE}/Auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email || undefined, phoneNumber: phoneNumber || undefined })
+    });
+    return handleResponse<OtpResponse>(res);
+  },
+
+  forgotPassword: async (contact: string) => {
+    const res = await fetch(`${API_BASE}/Auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact })
+    });
+    return handleResponse<{ message: string; devOtp?: string }>(res);
+  },
+
+  resetPassword: async (contact: string, otp: string, newPassword: string) => {
+    const res = await fetch(`${API_BASE}/Auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact, otp, newPassword })
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  // ==================== PHONE OTP ====================
+  sendPhoneOtp: async (phoneNumber: string, email?: string) => {
+    const res = await fetch(`${API_BASE}/Auth/send-phone-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber, ...(email ? { email } : {}) })
+    });
+    return handleResponse<{ message: string; devOtp?: string }>(res);
+  },
+
+  verifyPhone: async (phoneNumber: string, otp: string) => {
+    const res = await fetch(`${API_BASE}/Auth/verify-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber, otp })
+    });
+    return handleResponse<{ token?: string; username?: string; message?: string }>(res);
+  },
+
+  verifyPhoneFirebase: async (idToken: string, email?: string) => {
+    const token = getToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE}/Auth/verify-phone-firebase`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ idToken, email })
+    });
+    return handleResponse<{ token?: string; username?: string; message?: string }>(res);
+  },
+
+  // ==================== ACCOUNT CENTER ====================
+  getAccountContacts: async () => {
+    const res = await fetch(`${API_BASE}/Account/contacts`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    });
+    return handleResponse<AccountContacts>(res);
+  },
+
+  addAccountEmail: async (email: string) => {
+    const res = await fetch(`${API_BASE}/Account/add-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ email })
+    });
+    return handleResponse<OtpResponse>(res);
+  },
+
+  verifyAccountEmail: async (email: string, otp: string) => {
+    const res = await fetch(`${API_BASE}/Account/verify-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ email, otp })
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  addAccountPhone: async (phoneNumber: string) => {
+    const res = await fetch(`${API_BASE}/Account/add-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ phoneNumber })
+    });
+    return handleResponse<OtpResponse>(res);
+  },
+
+  verifyAccountPhone: async (phoneNumber: string, otp: string) => {
+    const res = await fetch(`${API_BASE}/Account/verify-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ phoneNumber, otp })
+    });
+    return handleResponse<{ message: string }>(res);
+  },
 };
 
 export default api;

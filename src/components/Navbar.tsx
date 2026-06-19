@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Bell, LogOut, User, Home, Users, Play, Trophy, MessageCircle } from 'lucide-react';
+import { Bell, LogOut, User, Home, Users, Play, Trophy, MessageCircle, Shield, Flame } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { clsx } from 'clsx';
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/communities', label: 'Communities', icon: Users },
   { to: '/my-links', label: 'My Links', icon: Play },
   { to: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+  { to: '/weekly-support', label: 'Support', icon: Flame },
   { to: '/messages', label: 'Messages', icon: MessageCircle },
 ];
 
@@ -46,6 +47,7 @@ export default function Navbar() {
   const displayUser = profileData ?? user;
   const avatar = getAssetUrl(displayUser?.avatarUrl);
   const unreadCount = notifications?.filter((n: Notification) => !n.isRead).length ?? 0;
+  const isAdmin = user?.role === 'ADMIN';
 
   const handleLogoutConfirm = () => {
     logout();
@@ -89,6 +91,21 @@ export default function Navbar() {
                 )}
               </Link>
             ))}
+            {/* Admin tab — only visible to admins */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={clsx(
+                  'relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  location.pathname.startsWith('/admin')
+                    ? 'bg-primary/10 text-primary border border-primary/30'
+                    : 'text-primary/70 hover:text-primary hover:bg-primary/10'
+                )}
+              >
+                <Shield size={16} />
+                Admin
+              </Link>
+            )}
           </div>
 
           {/* Right */}
@@ -130,22 +147,22 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Bottom Navigation Bar */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur border-t border-border flex justify-around items-center h-16 px-2 shadow-2xl pb-safe">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur border-t border-border flex justify-around items-center h-16 px-1 shadow-2xl bottom-nav-safe">
           {navItems.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
               to={to}
               className={clsx(
-                'relative flex flex-col items-center justify-center flex-1 py-1.5 text-[10px] font-semibold transition-colors',
+                'relative flex flex-col items-center justify-center flex-1 py-2 text-[10px] font-semibold transition-colors min-h-[44px] touch-manipulation',
                 location.pathname.startsWith(to)
                   ? 'text-primary font-bold'
                   : 'text-textSecondary hover:text-textPrimary'
               )}
             >
-              <Icon size={18} className="mb-0.5" />
-              <span>{label}</span>
+              <Icon size={20} className="mb-0.5" />
+              <span className="leading-none">{label}</span>
               {to === '/messages' && (unreadData?.total ?? 0) > 0 && (
-                <span className="absolute top-1.5 right-[30%] w-4 h-4 bg-primary text-white text-[8px] font-bold flex items-center justify-center rounded-full">
+                <span className="absolute top-1 right-[20%] w-4 h-4 bg-primary text-white text-[8px] font-bold flex items-center justify-center rounded-full">
                   {unreadData!.total > 9 ? '9+' : unreadData!.total}
                 </span>
               )}
@@ -155,14 +172,14 @@ export default function Navbar() {
           <Link
             to="/profile"
             className={clsx(
-              'relative flex flex-col items-center justify-center flex-1 py-1.5 text-[10px] font-semibold transition-colors',
+              'relative flex flex-col items-center justify-center flex-1 py-2 text-[10px] font-semibold transition-colors min-h-[44px] touch-manipulation',
               location.pathname.startsWith('/profile')
                 ? 'text-primary font-bold'
                 : 'text-textSecondary hover:text-textPrimary'
             )}
           >
             <div className={clsx(
-              'w-[22px] h-[22px] rounded-full flex items-center justify-center overflow-hidden mb-0.5 border',
+              'w-6 h-6 rounded-full flex items-center justify-center overflow-hidden mb-0.5 border',
               location.pathname.startsWith('/profile')
                 ? 'border-primary'
                 : 'border-border'
@@ -170,11 +187,26 @@ export default function Navbar() {
               {avatar ? (
                 <img src={avatar} alt={displayUser?.username} className="w-full h-full object-cover" />
               ) : (
-                <User size={13} className={location.pathname.startsWith('/profile') ? 'text-primary' : 'text-textSecondary'} />
+                <User size={14} className={location.pathname.startsWith('/profile') ? 'text-primary' : 'text-textSecondary'} />
               )}
             </div>
-            <span>Profile</span>
+            <span className="leading-none">Profile</span>
           </Link>
+          {/* Admin tab — mobile, only for admins */}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={clsx(
+                'relative flex flex-col items-center justify-center flex-1 py-2 text-[10px] font-semibold transition-colors min-h-[44px] touch-manipulation',
+                location.pathname.startsWith('/admin')
+                  ? 'text-primary font-bold'
+                  : 'text-primary/60 hover:text-primary'
+              )}
+            >
+              <Shield size={20} className="mb-0.5" />
+              <span className="leading-none">Admin</span>
+            </Link>
+          )}
         </div>
       </nav>
 

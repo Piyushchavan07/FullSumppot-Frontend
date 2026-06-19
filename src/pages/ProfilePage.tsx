@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { User, Star, Users, Play, Heart, Loader2, MessageCircle, Pencil, Eye, X, Send } from 'lucide-react';
+import { User, Star, Users, Play, Heart, Loader2, MessageCircle, Pencil, Eye, EyeOff, X, Send, KeyRound } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { toast } from 'sonner';
 import { useState, useRef } from 'react';
 import { getAssetUrl } from '../lib/utils';
+import AccountContactsCard from '../components/AccountContactsCard';
 import type { FollowUser } from '../types';
 
 const niches = [
@@ -30,6 +31,15 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editNiche, setEditNiche] = useState('');
+
+  // Password change state
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   const { data: dashboardData } = useQuery({
     queryKey: ['dashboard'],
@@ -57,6 +67,26 @@ export default function ProfilePage() {
       toast.error(err.message || 'Failed to update profile');
     }
   });
+
+  const changePasswordMut = useMutation({
+    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+      api.changePassword(data),
+    onSuccess: () => {
+      setIsChangingPassword(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success('Password changed successfully!');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Failed to change password'),
+  });
+
+  const handlePasswordSave = () => {
+    if (!currentPassword) { toast.error('Enter your current password'); return; }
+    if (newPassword.length < 8) { toast.error('New password must be at least 8 characters'); return; }
+    if (newPassword !== confirmPassword) { toast.error('New passwords do not match'); return; }
+    changePasswordMut.mutate({ currentPassword, newPassword });
+  };
 
   const handleStartEdit = () => {
     setEditUsername(displayUser?.username ?? '');
@@ -128,7 +158,7 @@ export default function ProfilePage() {
   });
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-xl mx-auto space-y-6">
       <h2 className="text-2xl font-bold text-textPrimary">Profile</h2>
 
       <div className="card">
@@ -308,6 +338,128 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          <AccountContactsCard />
+
+          {/* ── Change Password ──────────────────────────────────────────── */}
+          {!isChangingPassword ? (
+            <button
+              onClick={() => setIsChangingPassword(true)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-surfaceHover group-hover:bg-primary/10 transition-colors">
+                  <KeyRound size={15} className="text-textSecondary group-hover:text-primary transition-colors" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-medium text-textPrimary">Change Password</p>
+                  <p className="text-xs text-textSecondary">Update your account password</p>
+                </div>
+              </div>
+              <span className="text-xs text-textSecondary group-hover:text-primary transition-colors">→</span>
+            </button>
+          ) : (
+            <div className="card space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <KeyRound size={16} className="text-primary" />
+                <h4 className="text-sm font-semibold text-textPrimary">Change Password</h4>
+              </div>
+
+              {/* Current password */}
+              <div>
+                <label className="label">Current Password</label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPass ? 'text' : 'password'}
+                    className="input-field pr-12"
+                    placeholder="••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPass(!showCurrentPass)}
+                    className="absolute inset-y-0 right-0 w-12 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-colors"
+                  >
+                    {showCurrentPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* New password */}
+              <div>
+                <label className="label">New Password</label>
+                <div className="relative">
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
+                    className="input-field pr-12"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute inset-y-0 right-0 w-12 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-colors"
+                  >
+                    {showNewPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                {newPassword.length > 0 && newPassword.length < 8 && (
+                  <p className="text-xs text-primary mt-1">Must be at least 8 characters</p>
+                )}
+              </div>
+
+              {/* Confirm new password */}
+              <div>
+                <label className="label">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPass ? 'text' : 'password'}
+                    className="input-field pr-12"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute inset-y-0 right-0 w-12 flex items-center justify-center text-textSecondary hover:text-textPrimary transition-colors"
+                  >
+                    {showConfirmPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                  <p className="text-xs text-primary mt-1">Passwords do not match</p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => {
+                    setIsChangingPassword(false);
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                  }}
+                  disabled={changePasswordMut.isPending}
+                  className="flex-1 px-4 py-2 rounded-xl border border-border text-textSecondary hover:text-textPrimary hover:bg-surfaceHover transition-colors text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePasswordSave}
+                  disabled={changePasswordMut.isPending}
+                  className="flex-1 px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  {changePasswordMut.isPending ? <Loader2 size={15} className="animate-spin" /> : 'Update Password'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -332,19 +484,19 @@ export default function ProfilePage() {
                   </div>
                   <span className="font-medium text-textPrimary">@{u.username}</span>
                 </div>
-                <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                   <button
-                    onClick={() => navigate(`/communities?creator=${u.username}`)}
-                    className="text-[10px] px-2.5 py-1.5 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors"
+                    onClick={() => navigate(`/communities?creatorId=${u.userId}&creatorName=${encodeURIComponent(u.username)}`)}
+                    className="text-xs px-3 py-2 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors min-h-[36px]"
                   >
                     Communities
                   </button>
                   <button
                     onClick={() => { setComposeTarget({ id: Number(u.userId), username: u.username }); setComposeText(''); }}
-                    className="p-1.5 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors"
+                    className="p-2 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                     title="Message"
                   >
-                    <MessageCircle size={14} />
+                    <MessageCircle size={15} />
                   </button>
                 </div>
               </div>
@@ -382,13 +534,13 @@ export default function ProfilePage() {
                   </div>
                   <span className="font-medium text-textPrimary">@{u.username}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => {
                       localStorage.setItem(visitedKey, String(u.communityCount ?? 0));
                       navigate(`/communities?creatorId=${u.userId}&creatorName=${encodeURIComponent(u.username)}`);
                     }}
-                    className="relative text-[10px] px-2.5 py-1.5 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors"
+                    className="relative text-xs px-3 py-2 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors min-h-[36px]"
                   >
                     Communities
                     {newCount > 0 && (
@@ -399,10 +551,10 @@ export default function ProfilePage() {
                   </button>
                   <button
                     onClick={() => { setComposeTarget({ id: Number(u.userId), username: u.username }); setComposeText(''); }}
-                    className="p-1.5 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors"
+                    className="p-2 rounded-lg border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                     title="Message"
                   >
-                    <MessageCircle size={14} />
+                    <MessageCircle size={15} />
                   </button>
                 </div>
               </div>

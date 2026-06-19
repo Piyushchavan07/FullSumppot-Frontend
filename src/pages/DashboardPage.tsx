@@ -5,7 +5,7 @@ import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { formatDistanceToNow } from 'date-fns';
 import type { Community } from '../types';
-import { getAssetUrl } from '../lib/utils';
+import { getAssetUrl, getCommunityBanner } from '../lib/utils';
 
 function StatCard({ label, value, icon: Icon, color }: {
   label: string;
@@ -43,15 +43,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-surface to-surface border border-border p-8">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-surface to-surface border border-border p-5 sm:p-8">
         <div className="absolute -top-10 -right-10 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
-        <h2 className="text-3xl font-black text-textPrimary mb-1">
+        <h2 className="text-2xl sm:text-3xl font-black text-textPrimary mb-1">
           Hey, {dashboardData?.username ?? user?.username}
         </h2>
-        <p className="text-textSecondary">
+        <p className="text-textSecondary text-sm">
           Ready to grow your channel? Here's your daily overview.
         </p>
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
           <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
             {dashboardData?.contentNiche ?? user?.contentNiche ?? user?.niche}
           </span>
@@ -74,37 +74,53 @@ export default function DashboardPage() {
             <Link to="/profile?tab=following" className="text-sm text-textSecondary hover:text-primary transition-colors">Manage</Link>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {dashboardData.followingCommunities.slice(0, 4).map((c: Community) => (
-              <Link key={c.communityId} to={`/communities/${c.communityId}`} className="card hover:border-primary/40 transition-colors group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20 shrink-0">
-                      {c.creatorAvatar ? (
-                        <img src={getAssetUrl(c.creatorAvatar)!} alt={c.creatorName} className="w-full h-full object-cover" />
-                      ) : (
-                        <User size={10} className="text-primary" />
-                      )}
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-tight">{c.niche}</span>
-                    <span className="text-[10px] text-textSecondary truncate max-w-[80px]">by @{c.creatorName}</span>
+            {dashboardData.followingCommunities.slice(0, 4).map((c: Community) => {
+              const banner = getCommunityBanner(c.bannerUrl, c.latestLinkUrl);
+              return (
+                <Link key={c.communityId} to={`/communities/${c.communityId}`} className="relative overflow-hidden rounded-2xl border border-border hover:border-border/80 transition-colors group flex flex-col min-h-[160px]">
+                  {/* Banner background */}
+                  <div className="absolute inset-0">
+                    {banner ? (
+                      <img
+                        src={banner}
+                        alt={c.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-surface" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
                   </div>
-                </div>
-                <h4 className="font-semibold text-textPrimary group-hover:text-primary transition-colors line-clamp-1 mt-2">{c.name}</h4>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-[10px] text-textSecondary/60 italic">
-                    {(() => {
-                      try {
-                        return formatDistanceToNow(new Date(c.createdAt), { addSuffix: true });
-                      } catch {
-                        return 'recently';
-                      }
-                    })()}
-                  </span>
-                  <span className="text-[10px] text-primary font-bold uppercase tracking-wider group-hover:translate-x-1 transition-transform">Visit</span>
-                </div>
-              </Link>
-            ))}
+                  {/* Content */}
+                  <div className="relative z-10 p-3 flex flex-col flex-1 justify-end">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-white/20 shrink-0">
+                        {c.creatorAvatar ? (
+                          <img
+                            src={getAssetUrl(c.creatorAvatar)!}
+                            alt={c.creatorName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <User size={9} className="text-white/70" />
+                        )}
+                      </div>
+                      <span className="text-[10px] text-white/70 truncate max-w-[60px]">@{c.creatorName}</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-primary text-white text-[9px] font-bold uppercase tracking-tight shrink-0">{c.niche}</span>
+                    </div>
+                    <h4 className="font-bold text-white line-clamp-1 text-sm drop-shadow">{c.name}</h4>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[9px] text-white/60 italic">
+                        {(() => { try { return formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }); } catch { return 'recently'; } })()}
+                      </span>
+                      <span className="text-[9px] text-primary font-bold uppercase tracking-wider group-hover:translate-x-0.5 transition-transform">Visit →</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -118,16 +134,37 @@ export default function DashboardPage() {
             <Link to="/communities" className="text-sm text-textSecondary hover:text-primary transition-colors">View all</Link>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {joined.map((c: Community) => (
-              <Link key={c.communityId} to={`/communities/${c.communityId}`} className="card hover:border-primary/40 transition-colors group">
-                <div className="flex items-start justify-between mb-3">
-                  <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">{c.niche}</span>
-                  <span className="text-xs text-textSecondary flex items-center gap-1"><Users size={12} /> {c.memberCount}</span>
-                </div>
-                <h4 className="font-semibold text-textPrimary group-hover:text-primary transition-colors">{c.name}</h4>
-                <p className="text-xs text-textSecondary mt-1 line-clamp-2">{c.description}</p>
-              </Link>
-            ))}
+            {joined.map((c: Community) => {
+              const banner = getCommunityBanner(c.bannerUrl, c.latestLinkUrl);
+              return (
+                <Link key={c.communityId} to={`/communities/${c.communityId}`} className="relative overflow-hidden rounded-2xl border border-border hover:border-border/80 transition-colors group flex flex-col min-h-[180px]">
+                  {/* Banner background */}
+                  <div className="absolute inset-0">
+                    {banner ? (
+                      <img
+                        src={banner}
+                        alt={c.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-surface" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/20" />
+                  </div>
+                  {/* Content */}
+                  <div className="relative z-10 p-4 flex flex-col flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <span className="px-2 py-0.5 rounded-full bg-primary text-white text-xs font-medium">{c.niche}</span>
+                      <span className="text-xs text-white/70 flex items-center gap-1"><Users size={10} /> {c.memberCount}</span>
+                    </div>
+                    <div className="flex-1" />
+                    <h4 className="font-bold text-white line-clamp-1 drop-shadow">{c.name}</h4>
+                    <p className="text-xs text-white/65 mt-1 line-clamp-2">{c.description}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}

@@ -88,23 +88,23 @@ export default function LeaderboardPage() {
 
       {/* Top 3 podium */}
       {topThree.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 md:gap-4 max-w-xl mx-auto pt-6">
+        <div className="grid grid-cols-3 gap-1 sm:gap-4 max-w-sm sm:max-w-xl mx-auto pt-4 sm:pt-6">
           {topThree.map((user: LeaderboardRow) => {
             const isWinner = user.rank === 1;
             return (
-              <div key={user.username} className={`flex flex-col items-center cursor-pointer ${isWinner ? '-mt-6' : 'mt-0'}`} onClick={() => user.userId && navigate(`/user/${user.userId}`)}>
-                <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full bg-surfaceHover border-2 flex items-center justify-center mb-2 shadow-xl overflow-hidden ${isWinner ? 'border-yellow-400 scale-110' : 'border-border'} hover:ring-2 hover:ring-primary/40 transition-all`}>
+              <div key={user.username} className={`flex flex-col items-center cursor-pointer ${isWinner ? '-mt-4 sm:-mt-6' : 'mt-0'}`} onClick={() => user.userId && navigate(`/user/${user.userId}`)}>
+                <div className={`w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-surfaceHover border-2 flex items-center justify-center mb-1 sm:mb-2 shadow-xl overflow-hidden ${isWinner ? 'border-yellow-400 scale-110' : 'border-border'} hover:ring-2 hover:ring-primary/40 transition-all`}>
                   {user.avatarUrl ? (
                     <img src={getAssetUrl(user.avatarUrl)!} alt={user.username} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-lg md:text-xl font-bold text-textPrimary">{user.username?.[0] || '?'}</span>
+                    <span className="text-sm sm:text-xl font-bold text-textPrimary">{user.username?.[0] || '?'}</span>
                   )}
                 </div>
-                <p className="text-[10px] md:text-xs font-bold text-textPrimary truncate w-full text-center hover:text-primary transition-colors">{user.username || 'Unknown'}</p>
-                <p className="text-[10px] md:text-xs text-textSecondary">{(user.points || 0).toLocaleString()} pts</p>
-                <div className={`w-full mt-3 rounded-t-xl bg-surfaceHover border-t border-x border-border flex flex-col items-center justify-center gap-1 ${isWinner ? 'h-32 bg-gradient-to-b from-yellow-400/10 to-surfaceHover' : 'h-24'}`}>
-                  <Medal size={24} className={medalColors[Math.min(user.rank - 1, 2)]} />
-                  <span className="text-xs font-bold text-textSecondary">#{user.rank}</span>
+                <p className="text-[9px] sm:text-xs font-bold text-textPrimary truncate w-full text-center hover:text-primary transition-colors px-1">{user.username || 'Unknown'}</p>
+                <p className="text-[9px] sm:text-xs text-textSecondary">{(user.points || 0).toLocaleString()} pts</p>
+                <div className={`w-full mt-2 sm:mt-3 rounded-t-xl bg-surfaceHover border-t border-x border-border flex flex-col items-center justify-center gap-1 ${isWinner ? 'h-24 sm:h-32 bg-gradient-to-b from-yellow-400/10 to-surfaceHover' : 'h-16 sm:h-24'}`}>
+                  <Medal size={18} className={medalColors[Math.min(user.rank - 1, 2)]} />
+                  <span className="text-[10px] sm:text-xs font-bold text-textSecondary">#{user.rank}</span>
                 </div>
               </div>
             );
@@ -119,41 +119,41 @@ export default function LeaderboardPage() {
         </div>
       ) : (
         <div className="card overflow-hidden p-0 border-border/50">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-0">
+            <table className="w-full text-sm min-w-[320px]">
               <thead>
                 <tr className="border-b border-border bg-surfaceHover/30">
-                  <th className="text-left py-4 px-4 text-textSecondary font-medium">Rank</th>
-                  <th className="text-left py-4 px-4 text-textSecondary font-medium">Creator</th>
-                  <th className="text-left py-4 px-4 text-textSecondary font-medium hidden sm:table-cell">Niche</th>
-                  <th className="text-right py-4 px-4 text-textSecondary font-medium">Points</th>
-                  <th className="text-right py-4 px-4 text-textSecondary font-medium hidden md:table-cell">Links</th>
-                  <th className="text-right py-4 px-4 text-textSecondary font-medium hidden md:table-cell">Clicks</th>
+                  <th className="text-left py-3 px-3 text-textSecondary font-medium text-xs">Rank</th>
+                  <th className="text-left py-3 px-3 text-textSecondary font-medium text-xs">Creator</th>
+                  <th className="text-left py-3 px-3 text-textSecondary font-medium text-xs hidden sm:table-cell">Niche</th>
+                  <th className="text-right py-3 px-3 text-textSecondary font-medium text-xs">Points</th>
+                  <th className="text-right py-3 px-3 text-textSecondary font-medium text-xs hidden md:table-cell">Links</th>
+                  <th className="text-right py-3 px-3 text-textSecondary font-medium text-xs hidden md:table-cell">Clicks</th>
                 </tr>
               </thead>
               <tbody>
                 {ranked.map((row: LeaderboardRow) => (
-                  <tr key={row.rank} className="border-b border-border/30 hover:bg-surfaceHover/50 transition-colors group cursor-pointer" onClick={() => row.userId && navigate(`/user/${row.userId}`)}>
-                    <td className="py-4 px-4">
+                  <tr key={row.rank} className="border-b border-border/30 hover:bg-surfaceHover/50 transition-colors group cursor-pointer active:bg-surfaceHover" onClick={() => row.userId && navigate(`/user/${row.userId}`)}>
+                    <td className="py-3 px-3">
                       {row.rank <= 3 ? (
-                        <Medal size={18} className={medalColors[row.rank - 1]} />
+                        <Medal size={16} className={medalColors[row.rank - 1]} />
                       ) : (
-                        <span className="text-textSecondary font-mono">#{row.rank}</span>
+                        <span className="text-textSecondary font-mono text-xs">#{row.rank}</span>
                       )}
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary group-hover:scale-110 transition-transform overflow-hidden">
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0 overflow-hidden">
                           {row.avatarUrl ? (
                             <img src={getAssetUrl(row.avatarUrl)!} alt={row.username} className="w-full h-full object-cover" />
                           ) : (
                             row.username?.[0] || '?'
                           )}
                         </div>
-                        <span className="font-semibold text-textPrimary">{row.username || 'Unknown'}</span>
+                        <span className="font-semibold text-textPrimary text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">{row.username || 'Unknown'}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 hidden sm:table-cell">
+                    <td className="py-3 px-3 hidden sm:table-cell">
                       {row.niche ? (
                         <span className="px-2 py-0.5 rounded-full bg-surfaceHover text-textSecondary text-[10px] font-medium border border-border/50 uppercase tracking-wider">
                           {row.niche}
@@ -162,14 +162,14 @@ export default function LeaderboardPage() {
                         <span className="text-textSecondary/30 text-xs">—</span>
                       )}
                     </td>
-                    <td className="py-4 px-4 text-right font-bold text-textPrimary">
-                      <span className="flex items-center justify-end gap-1.5">
-                        <Star size={14} className="text-yellow-400 fill-yellow-400/20" />
-                        {(row.points || 0).toLocaleString()}
+                    <td className="py-3 px-3 text-right font-bold text-textPrimary">
+                      <span className="flex items-center justify-end gap-1">
+                        <Star size={12} className="text-yellow-400 fill-yellow-400/20 shrink-0" />
+                        <span className="text-xs sm:text-sm">{(row.points || 0).toLocaleString()}</span>
                       </span>
                     </td>
-                    <td className="py-4 px-4 text-right text-textSecondary hidden md:table-cell font-mono">{row.linksSubmitted}</td>
-                    <td className="py-4 px-4 text-right text-textSecondary hidden md:table-cell font-mono">{row.clicksReceived}</td>
+                    <td className="py-3 px-3 text-right text-textSecondary hidden md:table-cell font-mono text-xs">{row.linksSubmitted}</td>
+                    <td className="py-3 px-3 text-right text-textSecondary hidden md:table-cell font-mono text-xs">{row.clicksReceived}</td>
                   </tr>
                 ))}
               </tbody>

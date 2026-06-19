@@ -148,7 +148,7 @@ export default function MessagesPage() {
 
   return (
     <>
-      <div className="h-[calc(100vh-8rem)] flex gap-4">
+      <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-8rem)] flex gap-4" style={{height: 'calc(100dvh - 8rem)'}}>
         {/* Left panel */}
         <div className={`flex flex-col w-full sm:w-80 shrink-0 ${activeConversation ? 'hidden sm:flex' : 'flex'}`}>
           <div className="flex items-center gap-2 mb-3">

@@ -25,16 +25,16 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary hover:bg-red-600 active:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-primary hover:bg-red-600 active:bg-red-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation;
   }
   .btn-secondary {
-    @apply bg-surfaceHover hover:bg-border text-textPrimary font-semibold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-surfaceHover hover:bg-border text-textPrimary font-semibold py-2.5 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manipulation;
   }
   .input-field {
-    @apply w-full bg-surface border border-border rounded-lg px-4 py-2.5 text-textPrimary placeholder:text-textSecondary focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all;
+    @apply w-full bg-surface border border-border rounded-lg px-4 py-3 text-textPrimary placeholder:text-textSecondary focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all text-base;
   }
   .card {
-    @apply bg-surface border border-border rounded-xl p-5;
+    @apply bg-surface border border-border rounded-xl p-4 sm:p-5;
   }
   .label {
     @apply block text-sm font-medium text-textSecondary mb-1.5;
@@ -45,5 +45,15 @@
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+/* iOS safe area support */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bottom-nav-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 0.375rem);
   }
 }

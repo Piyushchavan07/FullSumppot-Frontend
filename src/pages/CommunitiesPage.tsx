@@ -8,7 +8,7 @@ import { Plus, Users, Search, X, Loader2, UserPlus, UserCheck, Clock } from 'luc
 import { api } from '../services/api';
 import { toast } from 'sonner';
 import type { Community, FollowUser } from '../types';
-import { getAssetUrl } from '../lib/utils';
+import { getAssetUrl, getCommunityBanner } from '../lib/utils';
 
 const schema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters'),
@@ -25,8 +25,7 @@ export default function CommunitiesPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
 
-  // Support filtering by creator via ?creator=<id>&creatorName=<name> query params
-  const creatorIdFilter = searchParams.get('creator');
+  const creatorIdFilter = searchParams.get('creatorId');
   const creatorNameFilter = searchParams.get('creatorName');
 
   const [search, setSearch] = useState('');
@@ -122,7 +121,7 @@ export default function CommunitiesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-textPrimary">
             {creatorIdFilter
@@ -136,7 +135,7 @@ export default function CommunitiesPage() {
         <button
           id="create-community-btn"
           onClick={() => setShowCreate(true)}
-          className="btn-primary flex items-center gap-2 shrink-0"
+          className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto shrink-0"
         >
           <Plus size={16} /> Create Community
         </button>
@@ -200,6 +199,7 @@ export default function CommunitiesPage() {
                                 src={getAssetUrl(u.avatarUrl)!}
                                 alt={u.username}
                                 className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
                             ) : (
                               <span>{u.username?.[0]?.toUpperCase() || 'U'}</span>
@@ -252,15 +252,17 @@ export default function CommunitiesPage() {
                       <div key={c.communityId} className="relative overflow-hidden rounded-2xl border border-border hover:border-border/80 transition-colors flex flex-col min-h-[180px]">
                         {/* Banner */}
                         <div className="absolute inset-0">
-                          {(loaded?.bannerUrl || c.bannerUrl) ? (
-                            <img
-                              src={getAssetUrl(loaded?.bannerUrl || c.bannerUrl)!}
-                              alt={c.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-surface" />
-                          )}
+                          {(() => {
+                            const banner = getCommunityBanner(
+                              loaded?.bannerUrl || c.bannerUrl,
+                              loaded?.latestLinkUrl || c.latestLinkUrl
+                            );
+                            return banner ? (
+                              <img src={banner} alt={c.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-surface" />
+                            );
+                          })()}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
                         </div>
                         <div className="relative z-10 p-3 flex flex-col flex-1">
@@ -329,15 +331,19 @@ export default function CommunitiesPage() {
                 <div key={c.communityId} className="relative overflow-hidden rounded-2xl border border-border hover:border-border/80 transition-colors flex flex-col min-h-[220px]">
                   {/* Banner as full background */}
                   <div className="absolute inset-0">
-                    {c.bannerUrl ? (
-                      <img
-                        src={getAssetUrl(c.bannerUrl)!}
-                        alt={c.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-surface" />
-                    )}
+                    {(() => {
+                      const banner = getCommunityBanner(c.bannerUrl, c.latestLinkUrl);
+                      return banner ? (
+                        <img
+                          src={banner}
+                          alt={c.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 via-primary/5 to-surface" />
+                      );
+                    })()}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
                   </div>
 
@@ -390,10 +396,10 @@ export default function CommunitiesPage() {
 
       {showCreate && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 px-4 pb-4 sm:pb-0"
           onClick={() => setShowCreate(false)}
         >
-          <div className="card w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-textPrimary">Create Community</h3>
               <button

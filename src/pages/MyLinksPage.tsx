@@ -133,29 +133,29 @@ export default function MyLinksPage() {
                   })()}
                 </p>
 
-                <div className="flex items-center justify-between mt-3">
-                  <span className="flex items-center gap-1.5 text-xs text-textSecondary">
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  <span className="flex items-center gap-1.5 text-xs text-textSecondary shrink-0">
                     <MousePointerClick size={12} /> {link.clicks} clicks
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleEditClick(link)}
-                      className="p-1.5 rounded-lg text-textSecondary hover:text-primary hover:bg-surfaceHover transition-colors"
+                      className="p-2 rounded-lg text-textSecondary hover:text-primary hover:bg-surfaceHover transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                       title="Edit"
                     >
-                      <Pencil size={13} />
+                      <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => handleDeleteClick(link.linkId)}
                       disabled={deleteMut.isPending}
-                      className="p-1.5 rounded-lg text-textSecondary hover:text-red-500 hover:bg-surfaceHover transition-colors"
+                      className="p-2 rounded-lg text-textSecondary hover:text-red-500 hover:bg-surfaceHover transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                       title="Delete"
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={14} />
                     </button>
                     <button
                       onClick={() => clickMut.mutate({ linkId: link.linkId, url: link.url })}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors"
+                      className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-full border border-border text-textSecondary hover:border-primary hover:text-primary transition-colors min-h-[36px]"
                     >
                       <ExternalLink size={12} /> Open
                     </button>
