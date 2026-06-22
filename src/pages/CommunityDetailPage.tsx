@@ -661,6 +661,17 @@ export default function CommunityDetailPage() {
     onError: (err: Error) => toast.error(err?.message || 'Failed to update community'),
   });
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const deleteCommunityMut = useMutation({
+    mutationFn: () => api.deleteCommunity(numericId),
+    onSuccess: () => {
+      toast.success('Community deleted successfully');
+      navigate('/communities');
+    },
+    onError: (err: Error) => toast.error(err?.message || 'Failed to delete community'),
+  });
+
   const leaveMut = useMutation({
     mutationFn: () => api.leaveCommunity(numericId),
     onSuccess: () => {
@@ -794,6 +805,14 @@ export default function CommunityDetailPage() {
               <div className="flex justify-end gap-2 mb-3 flex-wrap">
                 <button onClick={() => setShowEditCommunity(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 text-white text-xs hover:bg-black/70 transition-colors border border-white/20">
                   <Pencil size={12} /> Edit Community
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={deleteCommunityMut.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-950/60 text-red-400 text-xs hover:bg-red-950 transition-colors border border-red-900/50"
+                >
+                  {deleteCommunityMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  Delete Community
                 </button>
                 <button onClick={() => bannerInputRef.current?.click()} disabled={bannerMut.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 text-white text-xs hover:bg-black/70 transition-colors border border-white/20">
                   {bannerMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
@@ -1061,6 +1080,54 @@ export default function CommunityDetailPage() {
           </button>
           <div className="relative w-[80vw] h-[80vw] max-w-[500px] max-h-[500px] rounded-full overflow-hidden border-4 border-primary/30 shadow-2xl">
             <img src={viewerUrl} alt="Avatar" className="w-full h-full object-cover" onClick={(e) => e.stopPropagation()} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Community Confirmation Modal ───────────────────── */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-4"
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-surface border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-950/40 border border-red-900/50 mx-auto mb-4">
+              <Trash2 size={22} className="text-red-400" />
+            </div>
+            <h3 className="text-lg font-bold text-textPrimary text-center mb-1">
+              Delete Community
+            </h3>
+            <p className="text-textSecondary text-sm text-center mb-1">
+              Are you sure you want to delete
+            </p>
+            <p className="text-primary font-semibold text-sm text-center mb-4">
+              "{community.name}"?
+            </p>
+            <p className="text-red-400/80 text-xs text-center mb-6">
+              This cannot be undone. All links and members will be removed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteCommunityMut.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-textSecondary hover:text-textPrimary hover:bg-surfaceHover transition-colors text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteCommunityMut.mutate()}
+                disabled={deleteCommunityMut.isPending}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-900/80 text-red-300 hover:bg-red-900 transition-colors text-sm font-medium flex items-center justify-center gap-2 border border-red-800/50"
+              >
+                {deleteCommunityMut.isPending
+                  ? <Loader2 size={15} className="animate-spin" />
+                  : <Trash2 size={15} />}
+                {deleteCommunityMut.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
